@@ -62,24 +62,11 @@
         }
 
         .manual-upload {
-            text-align: center;
-            margin-top: 10px;
+            display: none !important;
         }
 
         .upload-btn {
-            background: linear-gradient(45deg, #2196F3, #1976D2);
-            color: white;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s ease;
-        }
-
-        .upload-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+            display: none !important;
         }
 
         .file-input {
@@ -91,6 +78,14 @@
             flex-direction: column;
             gap: 15px;
             align-items: center;
+        }
+
+        .category-filter {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
         .category-filter select {
@@ -109,6 +104,28 @@
         .category-filter select:focus {
             border-color: #1976D2;
             box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+        }
+
+        .show-all-btn {
+            padding: 12px 20px;
+            border: 2px solid #2196F3;
+            border-radius: 25px;
+            background: white;
+            color: #2196F3;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            outline: none;
+        }
+
+        .show-all-btn:hover {
+            background: #2196F3;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
         }
 
         .special-filters {
@@ -209,7 +226,9 @@
             font-size: 1.5rem;
             font-weight: bold;
             color: #1976D2;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            line-height: 1.6;
+            letter-spacing: 0.5px;
         }
 
         .brand-category {
@@ -297,11 +316,7 @@
         }
 
         .stats {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+            display: none !important;
         }
 
         .stat-item {
@@ -383,10 +398,21 @@
                 padding: 6px 12px;
             }
             
+            .category-filter {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
             .category-filter select {
                 padding: 10px 15px;
                 font-size: 14px;
                 min-width: 150px;
+            }
+            
+            .show-all-btn {
+                padding: 10px 15px;
+                font-size: 12px;
+                width: 100%;
             }
             
             .controls {
@@ -455,11 +481,7 @@
             <div class="debug-info" id="debugInfo"></div>
             
             <div class="manual-upload" id="manualUpload">
-                <p style="margin-bottom: 10px; color: #666;">Please upload your brand.xlsx file:</p>
                 <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
-                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-                    📁 Upload Excel File
-                </button>
             </div>
             
             <div class="filters-container" id="filtersContainer" style="display: none;">
@@ -467,26 +489,24 @@
                     <select id="categorySelect">
                         <option value="all">All Categories</option>
                     </select>
+                    <button class="show-all-btn" id="showAllCategoriesBtn">Show All Categories</button>
                 </div>
                 
                 <div class="special-filters">
                     <button class="filter-btn all-brands active" id="allBrandsBtn">
-                        🏷️ All Brands
+                        🏷️ All Brands (<span id="allBrandsCount">0</span>)
                     </button>
                     <button class="filter-btn hot-selling" id="hotSellingBtn">
-                        🔥 Hot Selling
+                        🔥 Hot Selling (<span id="hotSellingCount">0</span>)
                     </button>
                     <button class="filter-btn new-arrival" id="newArrivalBtn">
-                        ✨ New Arrivals
+                        ✨ New Arrivals (<span id="newArrivalsCount">0</span>)
                     </button>
                 </div>
             </div>
         </div>
 
         <div class="stats" id="stats" style="display: none;">
-            <div class="stat-item" id="totalBrands">Total: 0</div>
-            <div class="stat-item" id="hotSelling">Hot Selling: 0</div>
-            <div class="stat-item" id="newArrivals">New Arrivals: 0</div>
         </div>
 
         <div id="brandsContainer">
@@ -509,6 +529,15 @@
         // Event listeners
         document.getElementById('categorySelect').addEventListener('change', applyFilters);
         document.getElementById('fileInput').addEventListener('change', handleManualUpload);
+        document.getElementById('showAllCategoriesBtn').addEventListener('click', showAllCategories);
+        
+        // Ctrl+E shortcut for file upload
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'e') {
+                e.preventDefault();
+                document.getElementById('fileInput').click();
+            }
+        });
         
         // Special filter buttons
         document.getElementById('allBrandsBtn').addEventListener('click', () => setSpecialFilter('all'));
@@ -528,6 +557,11 @@
                 document.getElementById('newArrivalBtn').classList.add('active');
             }
             
+            applyFilters();
+        }
+
+        function showAllCategories() {
+            document.getElementById('categorySelect').value = 'all';
             applyFilters();
         }
 
@@ -743,7 +777,12 @@
                 return;
             }
 
-            const brandsHTML = filteredBrands.map(brand => {
+            // Sort brands alphabetically by name
+            const sortedBrands = [...filteredBrands].sort((a, b) => 
+                a.brand.toLowerCase().localeCompare(b.brand.toLowerCase())
+            );
+
+            const brandsHTML = sortedBrands.map(brand => {
                 let badgesHTML = '';
                 
                 if (brand.hotSelling && brand.hotSelling.toLowerCase() !== 'no' && brand.hotSelling !== '0' && brand.hotSelling.trim() !== '') {
@@ -778,21 +817,18 @@
         }
 
         function updateStats() {
-            const totalBrands = filteredBrands.length;
-            const hotSellingCount = filteredBrands.filter(brand => 
+            const totalBrands = allBrands.length;
+            const hotSellingCount = allBrands.filter(brand => 
                 brand.hotSelling && brand.hotSelling.toLowerCase() !== 'no' && brand.hotSelling !== '0' && brand.hotSelling.trim() !== ''
             ).length;
-            const newArrivalsCount = filteredBrands.filter(brand => 
+            const newArrivalsCount = allBrands.filter(brand => 
                 brand.newArrivals && brand.newArrivals.toLowerCase() !== 'no' && brand.newArrivals !== '0' && brand.newArrivals.trim() !== ''
             ).length;
 
-            document.getElementById('totalBrands').textContent = `Total: ${totalBrands}`;
-            document.getElementById('hotSelling').textContent = `🔥 Hot Selling: ${hotSellingCount}`;
-            document.getElementById('newArrivals').textContent = `✨ New Arrivals: ${newArrivalsCount}`;
-            
-            if (totalBrands > 0) {
-                document.getElementById('stats').style.display = 'flex';
-            }
+            // Update button counts
+            document.getElementById('allBrandsCount').textContent = totalBrands;
+            document.getElementById('hotSellingCount').textContent = hotSellingCount;
+            document.getElementById('newArrivalsCount').textContent = newArrivalsCount;
         }
     </script>
 </body>
